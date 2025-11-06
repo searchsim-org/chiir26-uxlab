@@ -1,0 +1,29 @@
+user_study:
+  id_code: "TREC-0508"
+  topics_path: "trec_2014.yaml"
+  number_of_topics: 6
+  task_type: "traditional" # conversational, hybrid
+  search_engine:
+    type: "ChatNoir"
+    index: "cw12"
+    search_properties:
+      results_per_page: 10 
+  llm_endpoints:
+    - url: "https://api.example-llm.com/v1"
+      api_key: "YOUR_API_KEY_HERE"
+      generation_properties: 
+        decoding_method: "greedy" 
+        temperature: 1.0 
+        top_k: 50 
+        top_p: 1.0 
+  pre_study_questions:
+    enabled: true
+    config_path: "../surveys/trec_2014.yaml"
+
+
+study_parameters:
+  study_date: "2024-06-15"
+  data_collection:
+    anonymize_data: true
+    store_responses: true
+    response_format: "json"
