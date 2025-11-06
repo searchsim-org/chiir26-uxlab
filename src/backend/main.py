@@ -66,6 +66,14 @@ def create_app() -> FastAPI:
 
 app = create_app()
 
+
+@app.get("/health")
+@app.get("/api/v1/health")
+async def health():
+    """Health check endpoint for monitoring and deployment scripts."""
+    return {"status": "healthy", "service": "uxlab-backend"}
+
+
 def create_error_event(detail: str):
     obj = ChatResponseEvent(
         data=ErrorStream(detail=detail),
