@@ -161,7 +161,7 @@ prod: build-prod ## Build and run in production mode locally (use Ctrl+C to stop
 
 backend-prod: check-poetry ## Run backend in production mode
 	@echo "$(BLUE)Starting backend in production mode on http://localhost:8100$(NC)"
-	@cd src/backend && PORT=8100 poetry run python run.py
+	@cd src/backend && PRODUCTION=true PORT=8100 poetry run python run.py
 
 frontend-prod: check-pnpm ## Run frontend in production mode (requires build first)
 	@echo "$(BLUE)Starting frontend in production mode on http://localhost:3001$(NC)"
@@ -253,8 +253,28 @@ ollama-pull: ## Pull recommended Ollama models (optional - for local LLM support
 	@echo "$(GREEN)✓ Models downloaded$(NC)"
 
 # Production Build
-build-prod: ## Build for production
+build-prod: check-env-prod ## Build for production
 	@echo "$(BLUE)Building for production...$(NC)"
-	@cd src/frontend && pnpm run build
+	@if [ ! -f .env ]; then \
+		echo "$(RED)Error: .env file not found$(NC)"; \
+		echo "$(YELLOW)Please create a .env file with NEXT_PUBLIC_API_URL set$(NC)"; \
+		exit 1; \
+	fi
+	@export $$(cat .env | grep -v '^#' | xargs) && cd src/frontend && pnpm run build
 	@echo "$(GREEN)✓ Production build complete$(NC)"
+
+check-env-prod: ## Check if production environment variables are set
+	@if [ ! -f .env ]; then \
+		echo "$(RED)Error: .env file not found$(NC)"; \
+		echo "$(YELLOW)Creating .env template. Please configure it:$(NC)"; \
+		echo "# Production Configuration" > .env; \
+		echo "NEXT_PUBLIC_API_URL=http://your-domain.com:8100" >> .env; \
+		echo "NEXT_PUBLIC_LOCAL_MODE_ENABLED=false" >> .env; \
+		echo "BING_API_KEY=your_bing_api_key" >> .env; \
+		echo "" >> .env; \
+		echo "# Database (if needed)" >> .env; \
+		echo "DATABASE_URL=postgresql://user:password@localhost:5432/uxlab" >> .env; \
+		echo "$(GREEN)✓ .env template created$(NC)"; \
+		exit 1; \
+	fi
 
