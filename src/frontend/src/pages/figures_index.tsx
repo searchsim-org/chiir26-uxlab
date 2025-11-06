@@ -179,10 +179,10 @@ export default function FiguresIndex() {
           <h2 className="text-2xl font-bold mb-4">Screenshot Instructions</h2>
           <div className="space-y-3 text-muted-foreground">
             <p>1. Click on any figure card above to view the full-size page</p>
-            <p>2. Use your browser's full-screen mode for clean screenshots (F11 on most browsers)</p>
+            <p>2. Use your browser&apos;s full-screen mode for clean screenshots (F11 on most browsers)</p>
             <p>3. Adjust zoom level if needed (Cmd/Ctrl + or -) to fit the entire figure in view</p>
             <p>4. Take a screenshot using your preferred tool</p>
-            <p>5. Use browser's back button or navigate directly to return to this index</p>
+            <p>5. Use browser&apos;s back button or navigate directly to return to this index</p>
           </div>
         </div>
 

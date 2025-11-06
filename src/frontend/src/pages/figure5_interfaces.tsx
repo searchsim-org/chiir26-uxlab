@@ -229,7 +229,7 @@ export default function Figure5Interfaces() {
 
         <div className="mt-12 text-center">
           <p className="text-lg text-muted-foreground italic">
-            The same participant interface adapts to any backend through UXLab's modular architecture
+            The same participant interface adapts to any backend through UXLab&apos;s modular architecture
           </p>
         </div>
       </div>

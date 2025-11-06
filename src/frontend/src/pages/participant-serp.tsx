@@ -253,7 +253,7 @@ export default function ParticipantSERP() {
             <p className="text-xs text-muted-foreground text-center leading-relaxed">
               Use the search box to refine your queries. Click on result titles to explore web pages. 
               Mark results as relevant using the star button. When you have sufficient information to complete the task, 
-              click "Mark Task as Complete" above.
+              click &quot;Mark Task as Complete&quot; above.
             </p>
           </div>
 

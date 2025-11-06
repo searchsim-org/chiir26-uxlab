@@ -1,4 +1,4 @@
-.PHONY: help install dev run backend frontend up down build logs clean frontend-install backend-install generate-api test setup env check-poetry check-pnpm check-prereqs status ps restart rebuild logs-backend logs-frontend clean-frontend clean-backend clean-docker format format-backend format-frontend lint lint-backend lint-frontend ollama-pull build-prod db-migrate db-rollback db-reset
+.PHONY: help install dev run backend frontend up down build logs clean frontend-install backend-install generate-api test setup env check-poetry check-pnpm check-prereqs status ps restart rebuild logs-backend logs-frontend clean-frontend clean-backend clean-docker format format-backend format-frontend lint lint-backend lint-frontend ollama-pull build-prod prod backend-prod frontend-prod db-migrate db-rollback db-reset
 
 # Colors for output
 BLUE := \033[0;34m
@@ -14,9 +14,14 @@ help: ## Show this help message
 	@echo "$(BLUE)UXLab - Available Commands$(NC)"
 	@echo ""
 	@echo "$(YELLOW)Local Development (Recommended):$(NC)"
-	@echo "  $(GREEN)make run$(NC)            - Run backend and frontend locally"
-	@echo "  $(GREEN)make backend$(NC)        - Run backend only"
-	@echo "  $(GREEN)make frontend$(NC)       - Run frontend only"
+	@echo "  $(GREEN)make run$(NC)            - Run backend and frontend locally (dev mode)"
+	@echo "  $(GREEN)make backend$(NC)        - Run backend only (dev mode)"
+	@echo "  $(GREEN)make frontend$(NC)       - Run frontend only (dev mode)"
+	@echo ""
+	@echo "$(YELLOW)Production Deployment (Local):$(NC)"
+	@echo "  $(GREEN)make prod$(NC)           - Build and run in production mode (backend: 8100, frontend: 3001)"
+	@echo "  $(GREEN)make backend-prod$(NC)   - Run backend in production mode (port 8100)"
+	@echo "  $(GREEN)make frontend-prod$(NC)  - Run frontend in production mode (port 3001)"
 	@echo ""
 	@echo "$(YELLOW)All Commands:$(NC)"
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "$(GREEN)%-20s$(NC) %s\n", $$1, $$2}'
@@ -28,17 +33,23 @@ setup: check-prereqs env install ## Complete project setup (environment + depend
 	@echo ""
 	@echo "$(BLUE)Next steps:$(NC)"
 	@echo "  1. Add your BING_API_KEY to the .env file"
-	@echo "  2. Make sure Ollama is running: $(YELLOW)ollama serve$(NC)"
-	@echo "  3. Start the app: $(YELLOW)make run$(NC)"
+	@echo "  2. Start the app: $(YELLOW)make run$(NC)"
+	@echo ""
+	@echo "$(BLUE)Optional - For local LLM support:$(NC)"
+	@echo "  • Install Ollama from https://ollama.com/download"
+	@echo "  • Start Ollama: $(YELLOW)ollama serve$(NC)"
+	@echo "  • Pull models: $(YELLOW)make ollama-pull$(NC)"
 	@echo ""
 
 check-prereqs: ## Check if all prerequisites are installed
 	@echo "$(BLUE)Checking prerequisites...$(NC)"
 	@command -v poetry >/dev/null 2>&1 && echo "$(GREEN)✓ Poetry installed$(NC)" || echo "$(RED)✗ Poetry not found - Install from https://python-poetry.org/$(NC)"
 	@command -v pnpm >/dev/null 2>&1 && echo "$(GREEN)✓ pnpm installed$(NC)" || echo "$(RED)✗ pnpm not found - Run: npm install -g pnpm$(NC)"
-	@command -v ollama >/dev/null 2>&1 && echo "$(GREEN)✓ Ollama installed$(NC)" || echo "$(YELLOW)⚠ Ollama not found - Install from https://ollama.com/download$(NC)"
 	@command -v python3 >/dev/null 2>&1 && echo "$(GREEN)✓ Python installed$(NC)" || echo "$(RED)✗ Python not found$(NC)"
 	@command -v node >/dev/null 2>&1 && echo "$(GREEN)✓ Node.js installed$(NC)" || echo "$(RED)✗ Node.js not found$(NC)"
+	@echo ""
+	@echo "$(BLUE)Optional (for local LLM support):$(NC)"
+	@command -v ollama >/dev/null 2>&1 && echo "$(GREEN)✓ Ollama installed$(NC)" || echo "$(YELLOW)○ Ollama not installed (optional - only needed for local models)$(NC)"
 
 env: ## Create .env file from template
 	@if [ ! -f .env ]; then \
@@ -135,6 +146,31 @@ frontend: check-pnpm ## Run frontend locally
 
 dev: run ## Alias for 'run' command
 
+# Production Deployment (Local, No Containers)
+prod: build-prod ## Build and run in production mode locally (use Ctrl+C to stop)
+	@echo "$(BLUE)Starting production servers locally...$(NC)"
+	@echo "$(YELLOW)Backend will run on http://localhost:8100$(NC)"
+	@echo "$(YELLOW)Frontend will run on http://localhost:3001$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Press Ctrl+C to stop both servers$(NC)"
+	@echo ""
+	@trap 'kill 0' EXIT; \
+	$(MAKE) backend-prod & \
+	$(MAKE) frontend-prod & \
+	wait
+
+backend-prod: check-poetry ## Run backend in production mode
+	@echo "$(BLUE)Starting backend in production mode on http://localhost:8100$(NC)"
+	@cd src/backend && PORT=8100 poetry run python run.py
+
+frontend-prod: check-pnpm ## Run frontend in production mode (requires build first)
+	@echo "$(BLUE)Starting frontend in production mode on http://localhost:3001$(NC)"
+	@if [ ! -d "src/frontend/.next" ]; then \
+		echo "$(RED)Error: Production build not found. Run 'make build-prod' first.$(NC)"; \
+		exit 1; \
+	fi
+	@cd src/frontend && pnpm start -p 3001
+
 # API Generation
 generate-api: ## Generate OpenAPI client for frontend
 	@echo "$(BLUE)Generating API client...$(NC)"
@@ -207,9 +243,10 @@ status: ## Show status of services
 
 ps: status ## Alias for status
 
-# Ollama
-ollama-pull: ## Pull recommended Ollama models
+# Ollama (Optional - for local LLM support)
+ollama-pull: ## Pull recommended Ollama models (optional - for local LLM support)
 	@echo "$(BLUE)Pulling Ollama models...$(NC)"
+	@command -v ollama >/dev/null 2>&1 || { echo "$(RED)Error: Ollama is not installed. Install it from https://ollama.com/download$(NC)"; exit 1; }
 	@ollama pull llama3
 	@ollama pull mistral
 	@ollama pull gemma
