@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
@@ -8,16 +9,22 @@ from .models import Base
 
 load_dotenv()
 
-POSTGRES_USER = os.environ.get("POSTGRES_USER") or "postgres"
-POSTGRES_PASSWORD = os.environ.get("POSTGRES_PASSWORD") or "password"
-POSTGRES_HOST = os.environ.get("POSTGRES_HOST") or "localhost"
-POSTGRES_PORT = os.environ.get("POSTGRES_PORT") or "5432"
-POSTGRES_DB = os.environ.get("POSTGRES_DB") or "postgres"
+# Check if DATABASE_URL is set (for production/Docker use)
+DATABASE_URL = os.environ.get("DATABASE_URL")
 
-DATABASE_URL = (
-    os.environ.get("DATABASE_URL")
-    or f"postgresql+psycopg2://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
-)
+if DATABASE_URL and DATABASE_URL.startswith("postgresql"):
+    # Use PostgreSQL if explicitly configured
+    pass
+else:
+    # Default to SQLite for local development
+    # Use absolute path to ensure database is found regardless of working directory
+    if os.environ.get("SQLITE_DB_PATH"):
+        DB_PATH = os.environ.get("SQLITE_DB_PATH")
+    else:
+        # Get the project root directory (3 levels up from this file)
+        project_root = Path(__file__).resolve().parent.parent.parent.parent
+        DB_PATH = str(project_root / "uxlab.db")
+    DATABASE_URL = f"sqlite:///{DB_PATH}"
 
 
 def create_connection_string():
@@ -25,16 +32,21 @@ def create_connection_string():
 
 def test_connection():
     try:
+        print(f"Database URL: {DATABASE_URL}")
         with engine.connect() as conn:
-            version = conn.execute(text("SELECT version();")).fetchone()
-            print(f"Connected to PostgreSQL version: {version[0]}")
+            if "sqlite" in DATABASE_URL:
+                version = conn.execute(text("SELECT sqlite_version();")).fetchone()
+                print(f"Connected to SQLite version: {version[0]}")
+            else:
+                version = conn.execute(text("SELECT version();")).fetchone()
+                print(f"Connected to PostgreSQL version: {version[0]}")
             return True
     except Exception as e:
         print(f"An error occurred: {e}")
         return False
 
 
-engine = create_engine(create_connection_string())
+engine = create_engine(create_connection_string(), connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {})
 
 
 def get_session():

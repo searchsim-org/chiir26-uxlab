@@ -6,6 +6,9 @@ __pycache__/
 # C extensions
 *.so
 
+# Compressed files
+*.zip
+
 .vscode
 
 # Distribution / packaging
@@ -26,6 +29,7 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
+.pnpm-store/
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -61,6 +65,10 @@ cover/
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
+
+# SQLite databases
+*.db
+*.db-journal
 
 # Flask stuff:
 instance/

@@ -1,8 +1,12 @@
 # Some of the code here is based on github.com/cohere-ai/cohere-toolkit/
 
 from typing import Union, List
-from constants import ChatModel
-from utils import strtobool
+try:
+    from .constants import ChatModel
+    from .utils import strtobool
+except ImportError:
+    from backend.constants import ChatModel
+    from backend.utils import strtobool
 from pydantic import BaseModel, Field
 from typing import Optional
 from datetime import datetime

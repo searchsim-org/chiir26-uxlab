@@ -1,4 +1,7 @@
-from constants import ChatModel
+try:
+    from .constants import ChatModel
+except ImportError:
+    from backend.constants import ChatModel
 
 
 def is_local_model(model: ChatModel) -> bool:

@@ -1,5 +1,5 @@
 user_study:
-  id_code: "TREC-0315"
+  id_code: "CHIIR26"
   topics_path: "trec_2014.yaml"
   number_of_topics: 6
   task_type: "traditional"

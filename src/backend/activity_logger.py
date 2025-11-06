@@ -6,6 +6,7 @@ from db.log_utils import insert_log_entry
 from schemas import LogEntry, SurveyResponseEntry
 from db.models import SurveyResponse
 from pydantic import parse_obj_as
+import json
 
 # Define the router
 router = APIRouter()
@@ -24,11 +25,12 @@ async def log_activity(request: Request, background_tasks: BackgroundTasks, db: 
     
 @router.post("/api/v1/survey_responses")
 async def store_survey_response(response_entry: SurveyResponseEntry, db: Session = Depends(get_session)):
+    # Serialize tasks and content as JSON strings for SQLite compatibility
     new_response = SurveyResponse(
         user_id=response_entry.user_id,
         timestamp=response_entry.timestamp,
-        tasks=response_entry.tasks,
-        content=response_entry.content
+        tasks=json.dumps(response_entry.tasks) if isinstance(response_entry.tasks, (list, dict)) else response_entry.tasks,
+        content=json.dumps(response_entry.content) if isinstance(response_entry.content, dict) else response_entry.content
     )
     db.add(new_response)
     db.commit()

@@ -220,11 +220,17 @@ export default function Home() {
         {!showSurvey ? (
           <>
             <div className="text-center text-left-align mb-8 ml-10">
-              <span className="block text-lg mb-2 join-text-color">USER SEARCH STUDY</span>
+              <span className="block text-lg mb-10 opacity-60 uppercase tracking-wider">Participant Interface</span>
+              {/* <span className="block text-lg mb-2 join-text-color">USER SEARCH STUDY</span> */}
               <h1 className="text-5xl mb-4">Start a Search Session.</h1>
               <h4 className="text-xl mb-4">Click Get started to begin. First, complete a brief pre-task questionnaire.<br /> Then, perform the necessary searches and click End task when finished. </h4>
             </div>
-            <div className="flex flex-col text-left-align">
+            <div className="flex flex-col text-left-align w-full max-w-md px-4">
+              <div className="mb-4 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+                <p className="text-md text-blue-300">
+                  Testing the platform? Use code <span className="font-semibold">CHIIR26</span>
+                </p>
+              </div>
               <form onSubmit={handleIdCodeSubmit} className="flex flex-col text-left-align">
                 <input
                   type="text"

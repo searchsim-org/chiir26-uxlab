@@ -17,12 +17,12 @@ const inter = Inter({
 
 
 const metadata = {
-  title: "SearchLab",
-  description: "Conversational and Traditional Search User Study",
-  metadataBase: new URL("https://searchlab.us"), 
+  title: "UXLab",
+  description: "UXLab is an open-source system for web-based user studies enabling the complete, no-code configuration of complex experimental designs.",
+  metadataBase: new URL("https://uxlab.searchsim.org"), 
   openGraph: {
-    title: "SearchLab",
-    description: "Conversational and Traditional Search User Study",
+    title: "UXLab",
+    description: "UXLab is an open-source system for web-based user studies enabling the complete, no-code configuration of complex experimental designs.",
   },
 };
 
@@ -39,8 +39,7 @@ export default function MyApp({
       <Providers>
         <ThemeProvider
           attribute="class"
-          defaultTheme="dark"
-          enableSystem
+          forcedTheme="dark"
           disableTransitionOnChange
         >
           <Navbar />

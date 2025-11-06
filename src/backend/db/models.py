@@ -1,10 +1,14 @@
 import datetime
+import json
 
-from sqlalchemy import ARRAY, DateTime, Enum, ForeignKey, String, func, Integer
+from sqlalchemy import ARRAY, DateTime, Enum, ForeignKey, String, func, Integer, Text, JSON
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import Mapped, declarative_base, mapped_column, relationship
 
-from schemas import MessageRole
+try:
+    from ..schemas import MessageRole
+except ImportError:
+    from backend.schemas import MessageRole
 
 Base = declarative_base()
 
@@ -25,8 +29,8 @@ class SurveyResponse(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[str] = mapped_column(String)
     timestamp: Mapped[int] = mapped_column(Integer)
-    tasks: Mapped[list[str]] = mapped_column(ARRAY(String))
-    content: Mapped[dict] = mapped_column(postgresql.JSONB)
+    tasks: Mapped[str] = mapped_column(Text)  # Store as JSON string for SQLite compatibility
+    content: Mapped[str] = mapped_column(Text)  # Store as JSON string for SQLite compatibility
     
 
 class ChatThread(Base):
@@ -75,16 +79,16 @@ class ChatMessage(Base):
         ChatThread, back_populates="messages"
     )
 
-    # AI Only
+    # AI Only - Store as JSON strings for SQLite compatibility
     agent_search_full_response: Mapped[str | None] = mapped_column(
-        postgresql.JSONB, nullable=True
+        Text, nullable=True
     )
 
-    related_queries: Mapped[list[str] | None] = mapped_column(
-        ARRAY(String), nullable=True
+    related_queries: Mapped[str | None] = mapped_column(
+        Text, nullable=True  # Store as JSON string
     )
-    image_results: Mapped[list[str] | None] = mapped_column(
-        ARRAY(String), nullable=True
+    image_results: Mapped[str | None] = mapped_column(
+        Text, nullable=True  # Store as JSON string
     )
 
     search_results: Mapped[list[SearchResult] | None] = relationship(
