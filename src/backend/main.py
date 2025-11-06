@@ -61,6 +61,22 @@ def create_app() -> FastAPI:
     app.include_router(search_router)
     app.include_router(activity_logger_router)
     app.include_router(load_user_study_router)
+    
+    # Database initialization on startup
+    @app.on_event("startup")
+    async def startup_event():
+        """Initialize database tables on application startup"""
+        try:
+            from db.engine import engine, Base, test_connection
+            print("Initializing database...")
+            if test_connection():
+                Base.metadata.create_all(engine)
+                print("✓ Database tables initialized successfully")
+            else:
+                print("⚠ Warning: Database connection test failed")
+        except Exception as e:
+            print(f"⚠ Warning: Database initialization error: {e}")
+    
     return app
 
 
