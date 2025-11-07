@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Create an Axios instance with the base URL
 const apiService = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8100',
+  baseURL: process.env.NEXT_PUBLIC_API_BASE_URL || 'https://uxlab.searchsim.org',
 });
 
 // Function to load survey questions
