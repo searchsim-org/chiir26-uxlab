@@ -1,7 +1,7 @@
 import { defineConfig } from "@hey-api/openapi-ts";
 
 export default defineConfig({
-  input: "http://localhost:8001/openapi.json",
+  input: "http://localhost:8100/openapi.json",
   output: "generated",
   types: {
     enums: "typescript",
