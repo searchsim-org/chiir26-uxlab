@@ -1,11 +1,12 @@
 "use client";
-import React from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/router';
 import { submitSurveyResponse } from '../services/apiService';
 import Cookies from 'js-cookie';
 
 export default function EndSession() {
   const router = useRouter();
+  const [submitting, setSubmitting] = useState(false);
 
   const satisfactionQuestions = [
     {
@@ -48,49 +49,44 @@ export default function EndSession() {
       scale_max: 5,
       scale_labels: ["Not at all", "Slightly", "Moderately", "Very", "Extremely"],
     },
-
   ];
 
   const renderSatisfactionForm = () => {
     return satisfactionQuestions.map((question, index) => {
-      switch (question.response_type) {
-        case 'scale':
-          return (
-            <div key={index} className="mb-6">
-              <h4 className="text-xl mb-4">{question.question_text}</h4>
-              <input
-                type="range"
-                name={question.question_id}
-                id={question.question_id}
-                min={question.scale_min}
-                max={question.scale_max}
-                defaultValue={question.scale_min}
-                className="w-full"
-              />
-              <div className="flex justify-between">
-                {question.scale_labels?.map((label, idx) => (
-                  <span key={idx}>{label}</span>
-                ))}
-              </div>
-            </div>
-          );
-        default:
-          return null;
-      }
+      if (question.response_type !== 'scale') return null;
+      return (
+        <div key={index} className="bg-card rounded-xl border border-border p-6">
+          <p className="text-sm font-medium mb-4">{question.question_text}</p>
+          <input
+            type="range"
+            name={question.question_id}
+            id={question.question_id}
+            min={question.scale_min}
+            max={question.scale_max}
+            defaultValue={question.scale_min}
+            className="w-full accent-blue-500"
+          />
+          <div className="flex justify-between text-xs text-muted-foreground mt-2">
+            {question.scale_labels?.map((label, idx) => (
+              <span key={idx}>{label}</span>
+            ))}
+          </div>
+        </div>
+      );
     });
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setSubmitting(true);
 
     const formData = new FormData(e.currentTarget);
     const formProps = Object.fromEntries(formData);
 
-    let userId = Cookies.get('user_id') || 'unknown_user';
-    let tasksJson = Cookies.get('tasksList') || '[]';
-    let tasks = JSON.parse(tasksJson);
+    const userId = Cookies.get('user_id') || 'unknown_user';
+    const tasksJson = Cookies.get('tasksList') || '[]';
+    const tasks = JSON.parse(tasksJson);
 
-    // Prepare the survey data
     const surveyData = {
       user_id: userId,
       timestamp: Math.floor(new Date().getTime() / 1000),
@@ -99,23 +95,15 @@ export default function EndSession() {
     };
 
     try {
-      // Submit the survey response
       await submitSurveyResponse(surveyData);
-      const externalCookie = Cookies.get('external');
-      if (externalCookie && externalCookie === 'PROLIFIC') {
-        router.push('https://app.prolific.com/submissions/complete?cc=C1JKA44Q');
-      } else {
-        router.push('/');
-      }
     } catch (error) {
-      const message = (error instanceof Error) ? error.message : 'An unknown error occurred';
       console.error('Error submitting survey response:', error);
-      // Handle error, e.g., show a notification to the user
     }
 
     Cookies.remove('tasksList');
-    Cookies.remove('external');
     const externalCookie = Cookies.get('external');
+    Cookies.remove('external');
+
     if (externalCookie && externalCookie === 'PROLIFIC') {
       router.push('https://app.prolific.com/submissions/complete?cc=C1JKA44Q');
     } else {
@@ -124,19 +112,26 @@ export default function EndSession() {
   };
 
   return (
-    <div className="flex h-screen bg-page-background bg-cover">
-      <div className="w-full md:w-1/2 flex flex-col items-center justify-center">
-        <div className="text-center text-left-align mb-8 ml-10 pt-mobile sm:pt-0" style={{ paddingTop: '80%' }}>
-          <span className="block text-lg mb-2 join-text-color">POST-SESSION QUESTIONNAIRE</span>
-          <h1 className="text-5xl mb-4">Your Feedback Matters</h1>
-          <h4 className="text-xl mb-4">Please, complete the following questionnaire.</h4>
+    <div className="flex h-screen bg-page-background bg-cover text-foreground">
+      <div className="w-full md:w-1/2 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm p-8">
+        <div className="w-full max-w-md">
+          <div className="text-center mb-8">
+            <span className="block text-lg mb-2 text-blue-500 font-semibold tracking-wide uppercase">Post-Session Questionnaire</span>
+            <h1 className="text-4xl mb-4 font-bold tracking-tight">Your Feedback Matters</h1>
+            <p className="text-muted-foreground">Please complete this brief questionnaire about your experience.</p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {renderSatisfactionForm()}
+            <button
+              type="submit"
+              disabled={submitting}
+              className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-full text-lg font-medium mt-6 transition-all shadow-lg hover:shadow-xl disabled:opacity-50"
+            >
+              {submitting ? 'Submitting...' : 'Submit & Finish'}
+            </button>
+          </form>
         </div>
-        <form onSubmit={handleSubmit} className="survey-form">
-          {renderSatisfactionForm()}
-          <button type="submit" className="py-4 px-20 bg-blue-500 text-white rounded-full text-lg mt-4">
-            Submit
-          </button>
-        </form>
       </div>
     </div>
   );
