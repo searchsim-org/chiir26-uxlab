@@ -108,7 +108,7 @@ export default function ProcedureBuilder() {
   };
 
   // Add a new step
-  const addStep = (type: string) => {
+  const addStep = (type: ProcedureStep['type']) => {
     const newStep: ProcedureStep = {
       id: nextId,
       type,
