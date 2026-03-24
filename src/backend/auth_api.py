@@ -153,13 +153,15 @@ async def github_callback(
     
     # Redirect to frontend with session cookie
     redirect_response = RedirectResponse(url=f"{FRONTEND_URL}/dashboard")
+    is_https = FRONTEND_URL.startswith("https")
     redirect_response.set_cookie(
         key="session",
         value=session_token,
         httponly=True,
+        path="/",
         max_age=SESSION_DURATION_DAYS * 24 * 60 * 60,
-        samesite="lax",
-        secure=FRONTEND_URL.startswith("https")
+        samesite="lax" if is_https else "lax",
+        secure=is_https,
     )
     return redirect_response
 

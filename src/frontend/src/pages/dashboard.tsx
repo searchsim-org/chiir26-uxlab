@@ -18,10 +18,10 @@ export default function ExperimenterDashboard() {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [activeTab, setActiveTab] = useState('studies');
 
-  // Auth protection
+  // Auth protection — use replace to avoid back-button loop
   useEffect(() => {
     if (!authLoading && !authenticated) {
-      router.push('/auth/login');
+      router.replace('/auth/login');
     }
   }, [authLoading, authenticated, router]);
 
@@ -815,14 +815,14 @@ export default function ExperimenterDashboard() {
 
       {/* Add Backend Modal */}
       {showAddBackendModal && (() => {
-        const connectorInfo: Record<string, { label: string; description: string; category: 'llm' | 'search'; icon: string }> = {
-          openai: { label: 'OpenAI GPT', description: 'GPT models with RAG-powered search for grounded, cited responses', category: 'llm', icon: '🤖' },
-          openai_agentic: { label: 'OpenAI Agentic', description: 'Autonomous multi-step search agent that plans and synthesizes from multiple sources', category: 'llm', icon: '🧠' },
-          ollama: { label: 'Ollama (Local)', description: 'Privacy-preserving local LLM inference — supports Llama 3, Mistral, Gemma', category: 'llm', icon: '🏠' },
-          groq: { label: 'Groq', description: 'Ultra-fast inference with Llama and Mixtral models via Groq Cloud', category: 'llm', icon: '⚡' },
-          tavily: { label: 'Tavily Search', description: 'AI-optimized web search with content extraction and summaries', category: 'search', icon: '🔍' },
-          bing: { label: 'Bing Search', description: 'Microsoft Bing Web Search API for traditional SERP-style results', category: 'search', icon: '🌐' },
-          custom: { label: 'Custom Endpoint', description: 'Connect any REST API endpoint as a backend', category: 'search', icon: '🔧' },
+        const connectorInfo: Record<string, { label: string; description: string; category: 'llm' | 'search'; icon: React.ReactNode }> = {
+          openai: { label: 'OpenAI GPT', description: 'GPT models with RAG-powered search for grounded, cited responses', category: 'llm', icon: <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg> },
+          openai_agentic: { label: 'OpenAI Agentic', description: 'Autonomous multi-step search agent that plans and synthesizes from multiple sources', category: 'llm', icon: <svg className="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg> },
+          ollama: { label: 'Ollama (Local)', description: 'Privacy-preserving local LLM inference -- supports Llama 3, Mistral, Gemma', category: 'llm', icon: <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" /></svg> },
+          groq: { label: 'Groq', description: 'Ultra-fast inference with Llama and Mixtral models via Groq Cloud', category: 'llm', icon: <svg className="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg> },
+          tavily: { label: 'Tavily Search', description: 'AI-optimized web search with content extraction and summaries', category: 'search', icon: <svg className="w-5 h-5 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg> },
+          bing: { label: 'Bing Search', description: 'Microsoft Bing Web Search API for traditional SERP-style results', category: 'search', icon: <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> },
+          custom: { label: 'Custom Endpoint', description: 'Connect any REST API endpoint as a backend', category: 'search', icon: <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg> },
         };
         const llmTypes = Object.keys(connectorSchemas).filter(t => connectorInfo[t]?.category === 'llm');
         const searchTypes = Object.keys(connectorSchemas).filter(t => connectorInfo[t]?.category === 'search');
@@ -877,7 +877,7 @@ export default function ExperimenterDashboard() {
                               }`}
                             >
                               <div className="flex items-start gap-3">
-                                <span className="text-2xl">{info?.icon || '📦'}</span>
+                                <span className="w-8 h-8 rounded-lg bg-secondary flex items-center justify-center flex-shrink-0">{info?.icon}</span>
                                 <div className="min-w-0">
                                   <div className="font-semibold text-sm">{info?.label || type}</div>
                                   <div className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{info?.description}</div>
@@ -911,7 +911,7 @@ export default function ExperimenterDashboard() {
                               }`}
                             >
                               <div className="flex items-start gap-3">
-                                <span className="text-2xl">{info?.icon || '📦'}</span>
+                                <span className="w-8 h-8 rounded-lg bg-secondary flex items-center justify-center flex-shrink-0">{info?.icon}</span>
                                 <div className="min-w-0">
                                   <div className="font-semibold text-sm">{info?.label || type}</div>
                                   <div className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{info?.description}</div>
@@ -944,7 +944,7 @@ export default function ExperimenterDashboard() {
                               }`}
                             >
                               <div className="flex items-start gap-3">
-                                <span className="text-2xl">📦</span>
+                                <span className="w-8 h-8 rounded-lg bg-secondary flex items-center justify-center flex-shrink-0"><svg className="w-5 h-5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg></span>
                                 <div className="min-w-0">
                                   <div className="font-semibold text-sm">{type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</div>
                                 </div>

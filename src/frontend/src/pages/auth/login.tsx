@@ -3,12 +3,18 @@ import { useRouter } from 'next/router';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function LoginPage() {
-    const { signIn, authenticated, loading } = useAuth();
+    const { signIn, authenticated, loading, checkAuth } = useAuth();
     const router = useRouter();
+
+    // Always re-check auth when landing on login page — handles the case
+    // where user was redirected here after an OAuth callback cookie race.
+    useEffect(() => {
+        checkAuth();
+    }, [checkAuth]);
 
     useEffect(() => {
         if (authenticated) {
-            router.push('/dashboard');
+            router.replace('/dashboard');
         }
     }, [authenticated, router]);
 
