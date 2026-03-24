@@ -149,7 +149,7 @@ export default function ParticipantView() {
             }
           }
           const info: Record<number, string> = {};
-          for (const id of configIds) {
+          for (const id of Array.from(configIds)) {
             try {
               const backend = await getBackend(id);
               info[id] = backend.connector_type;
