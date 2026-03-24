@@ -10,7 +10,7 @@ import {
 
 import { useAuth } from '@/contexts/AuthContext';
 
-const GITHUB_REPO_URL = 'https://github.com/uxlab-org/uxlab';
+const GITHUB_REPO_URL = 'https://github.com/searchsim-org/uxlab';
 
 export default function ExperimenterDashboard() {
   const router = useRouter();
@@ -47,45 +47,28 @@ export default function ExperimenterDashboard() {
   const [participantsLoading, setParticipantsLoading] = useState(false);
   const [selectedStudyFilter, setSelectedStudyFilter] = useState<number | null>(null);
 
-  // Fetch data on mount
+  // Fetch data on mount — each call is independent so one failure doesn't block others
   useEffect(() => {
     async function fetchData() {
-      try {
-        setLoading(true);
-        const [studiesRes, backendsRes, statsRes] = await Promise.all([
-          getStudies(),
-          getBackends(),
-          getGlobalStats()
-        ]);
-        setStudies(studiesRes.studies);
-        setBackends(backendsRes.backends);
-        setGlobalStats(statsRes);
-        setError(null);
-        try {
-          const schemas = await getConnectorSchemas();
-          setConnectorSchemas(schemas);
-        } catch (e) {
-          console.error('Failed to fetch connector schemas:', e);
-        }
-      } catch (err) {
-        console.error('Failed to fetch data:', err);
+      setLoading(true);
+      const [studiesRes, backendsRes, statsRes, schemasRes] = await Promise.all([
+        getStudies().catch((e) => { console.error('Failed to fetch studies:', e); return null; }),
+        getBackends().catch((e) => { console.error('Failed to fetch backends:', e); return null; }),
+        getGlobalStats().catch((e) => { console.error('Failed to fetch stats:', e); return null; }),
+        getConnectorSchemas().catch((e) => { console.error('Failed to fetch connector schemas:', e); return null; }),
+      ]);
+
+      if (studiesRes) setStudies(studiesRes.studies);
+      if (backendsRes) setBackends(backendsRes.backends);
+      if (statsRes) setGlobalStats(statsRes);
+      if (schemasRes) setConnectorSchemas(schemasRes);
+
+      if (!studiesRes && !backendsRes && !statsRes) {
         setError('Failed to load data. The backend may not be running.');
-        // Use fallback mock data if API fails
-        setStudies([]);
-        setBackends([]);
-        setGlobalStats({
-          total_studies: 0,
-          active_studies: 0,
-          draft_studies: 0,
-          completed_studies: 0,
-          total_participants: 0,
-          completed_participants: 0,
-          overall_completion_rate: 0,
-          total_interactions: 0
-        });
-      } finally {
-        setLoading(false);
+      } else {
+        setError(null);
       }
+      setLoading(false);
     }
     fetchData();
   }, []);
@@ -266,14 +249,6 @@ export default function ExperimenterDashboard() {
               />
             </div>
             <div className="flex items-center space-x-6">
-              <a
-                href={GITHUB_REPO_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-              >
-                Documentation
-              </a>
               <div className="relative">
                 {authenticated && user && (
                   <>
@@ -611,7 +586,7 @@ export default function ExperimenterDashboard() {
                   <h2 className="text-4xl font-bold tracking-tight mb-2">Backend Configuration</h2>
                   <p className="text-muted-foreground">Configure search engines, RAG systems, and agentic backends</p>
                 </div>
-                <button onClick={() => setShowAddBackendModal(true)} className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white px-8 py-3 rounded-full font-medium transition-all shadow-lg hover:shadow-xl">
+                <button onClick={() => { if (Object.keys(connectorSchemas).length === 0) { getConnectorSchemas().then(s => setConnectorSchemas(s)).catch(() => {}); } setShowAddBackendModal(true); }} className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white px-8 py-3 rounded-full font-medium transition-all shadow-lg hover:shadow-xl">
                   Add New Backend
                 </button>
               </div>
@@ -620,7 +595,7 @@ export default function ExperimenterDashboard() {
                 {backends.length === 0 ? (
                   <div className="col-span-2 text-center py-12">
                     <p className="text-muted-foreground mb-4">No backends configured yet.</p>
-                    <button onClick={() => setShowAddBackendModal(true)} className="bg-gradient-to-r from-blue-500 to-purple-500 text-white px-6 py-2 rounded-full">
+                    <button onClick={() => { if (Object.keys(connectorSchemas).length === 0) { getConnectorSchemas().then(s => setConnectorSchemas(s)).catch(() => {}); } setShowAddBackendModal(true); }} className="bg-gradient-to-r from-blue-500 to-purple-500 text-white px-6 py-2 rounded-full">
                       Add Your First Backend
                     </button>
                   </div>
@@ -873,6 +848,13 @@ export default function ExperimenterDashboard() {
                 {/* Connector Type Cards */}
                 <div>
                   <label className="block text-sm font-medium mb-3">Choose a Connector Type</label>
+
+                  {llmTypes.length === 0 && searchTypes.length === 0 && otherTypes.length === 0 && (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <p className="text-sm">Loading connector types...</p>
+                      <p className="text-xs mt-1">If this persists, the backend may not be reachable.</p>
+                    </div>
+                  )}
 
                   {llmTypes.length > 0 && (
                     <div className="mb-4">

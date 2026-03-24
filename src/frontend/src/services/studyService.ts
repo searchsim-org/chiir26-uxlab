@@ -1,10 +1,15 @@
 /**
  * Study API Service
- * 
+ *
  * Provides typed API client functions for interacting with the UXLab backend.
  */
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
+/** Shared fetch wrapper that always sends cookies (matches authService behavior). */
+function apiFetch(url: string, init?: RequestInit): Promise<Response> {
+    return fetch(url, { credentials: 'include', ...init });
+}
 
 // ============================================================================
 // Types
@@ -90,19 +95,19 @@ export interface GlobalStats {
 // ============================================================================
 
 export async function getStudies(): Promise<{ studies: Study[]; total: number }> {
-    const response = await fetch(`${API_BASE}/api/v1/studies`);
+    const response = await apiFetch(`${API_BASE}/api/v1/studies`);
     if (!response.ok) throw new Error('Failed to fetch studies');
     return response.json();
 }
 
 export async function getStudy(id: number): Promise<Study> {
-    const response = await fetch(`${API_BASE}/api/v1/studies/${id}`);
+    const response = await apiFetch(`${API_BASE}/api/v1/studies/${id}`);
     if (!response.ok) throw new Error('Failed to fetch study');
     return response.json();
 }
 
 export async function createStudy(study: StudyCreate): Promise<Study> {
-    const response = await fetch(`${API_BASE}/api/v1/studies`, {
+    const response = await apiFetch(`${API_BASE}/api/v1/studies`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(study),
@@ -112,7 +117,7 @@ export async function createStudy(study: StudyCreate): Promise<Study> {
 }
 
 export async function updateStudy(id: number, study: StudyUpdate): Promise<Study> {
-    const response = await fetch(`${API_BASE}/api/v1/studies/${id}`, {
+    const response = await apiFetch(`${API_BASE}/api/v1/studies/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(study),
@@ -122,14 +127,14 @@ export async function updateStudy(id: number, study: StudyUpdate): Promise<Study
 }
 
 export async function deleteStudy(id: number): Promise<void> {
-    const response = await fetch(`${API_BASE}/api/v1/studies/${id}`, {
+    const response = await apiFetch(`${API_BASE}/api/v1/studies/${id}`, {
         method: 'DELETE',
     });
     if (!response.ok) throw new Error('Failed to delete study');
 }
 
 export async function duplicateStudy(id: number): Promise<Study> {
-    const response = await fetch(`${API_BASE}/api/v1/studies/${id}/duplicate`, {
+    const response = await apiFetch(`${API_BASE}/api/v1/studies/${id}/duplicate`, {
         method: 'POST',
     });
     if (!response.ok) throw new Error('Failed to duplicate study');
@@ -137,27 +142,27 @@ export async function duplicateStudy(id: number): Promise<Study> {
 }
 
 export async function activateStudy(id: number): Promise<void> {
-    const response = await fetch(`${API_BASE}/api/v1/studies/${id}/activate`, {
+    const response = await apiFetch(`${API_BASE}/api/v1/studies/${id}/activate`, {
         method: 'POST',
     });
     if (!response.ok) throw new Error('Failed to activate study');
 }
 
 export async function pauseStudy(id: number): Promise<void> {
-    const response = await fetch(`${API_BASE}/api/v1/studies/${id}/pause`, {
+    const response = await apiFetch(`${API_BASE}/api/v1/studies/${id}/pause`, {
         method: 'POST',
     });
     if (!response.ok) throw new Error('Failed to pause study');
 }
 
 export async function exportStudyConfig(id: number): Promise<object> {
-    const response = await fetch(`${API_BASE}/api/v1/studies/${id}/export/json`);
+    const response = await apiFetch(`${API_BASE}/api/v1/studies/${id}/export/json`);
     if (!response.ok) throw new Error('Failed to export study');
     return response.json();
 }
 
 export async function importStudyConfig(config: object): Promise<Study> {
-    const response = await fetch(`${API_BASE}/api/v1/studies/import`, {
+    const response = await apiFetch(`${API_BASE}/api/v1/studies/import`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(config),
@@ -177,7 +182,7 @@ export async function getParticipants(studyId: number): Promise<{
     completed: number;
     dropped: number;
 }> {
-    const response = await fetch(`${API_BASE}/api/v1/studies/${studyId}/participants`);
+    const response = await apiFetch(`${API_BASE}/api/v1/studies/${studyId}/participants`);
     if (!response.ok) throw new Error('Failed to fetch participants');
     return response.json();
 }
@@ -187,7 +192,7 @@ export async function registerParticipant(
     externalId: string,
     platform?: string
 ): Promise<Participant> {
-    const response = await fetch(`${API_BASE}/api/v1/studies/${studyId}/participants`, {
+    const response = await apiFetch(`${API_BASE}/api/v1/studies/${studyId}/participants`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -210,7 +215,7 @@ export async function getParticipantState(studyId: number, participantId: number
     status: string;
     procedure: { steps: any[] } | null;
 }> {
-    const response = await fetch(
+    const response = await apiFetch(
         `${API_BASE}/api/v1/studies/${studyId}/participants/${participantId}/state`
     );
     if (!response.ok) throw new Error('Failed to fetch participant state');
@@ -222,19 +227,19 @@ export async function getParticipantState(studyId: number, participantId: number
 // ============================================================================
 
 export async function getBackends(): Promise<{ backends: Backend[]; total: number }> {
-    const response = await fetch(`${API_BASE}/api/v1/backends`);
+    const response = await apiFetch(`${API_BASE}/api/v1/backends`);
     if (!response.ok) throw new Error('Failed to fetch backends');
     return response.json();
 }
 
 export async function getBackend(id: number): Promise<Backend> {
-    const response = await fetch(`${API_BASE}/api/v1/backends/${id}`);
+    const response = await apiFetch(`${API_BASE}/api/v1/backends/${id}`);
     if (!response.ok) throw new Error('Failed to fetch backend');
     return response.json();
 }
 
 export async function createBackend(backend: BackendCreate): Promise<Backend> {
-    const response = await fetch(`${API_BASE}/api/v1/backends`, {
+    const response = await apiFetch(`${API_BASE}/api/v1/backends`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(backend),
@@ -244,7 +249,7 @@ export async function createBackend(backend: BackendCreate): Promise<Backend> {
 }
 
 export async function deleteBackend(id: number): Promise<void> {
-    const response = await fetch(`${API_BASE}/api/v1/backends/${id}`, {
+    const response = await apiFetch(`${API_BASE}/api/v1/backends/${id}`, {
         method: 'DELETE',
     });
     if (!response.ok) throw new Error('Failed to delete backend');
@@ -255,7 +260,7 @@ export async function testBackend(id: number): Promise<{
     message: string;
     checked_at: string;
 }> {
-    const response = await fetch(`${API_BASE}/api/v1/backends/${id}/test`, {
+    const response = await apiFetch(`${API_BASE}/api/v1/backends/${id}/test`, {
         method: 'POST',
     });
     if (!response.ok) throw new Error('Failed to test backend');
@@ -263,7 +268,7 @@ export async function testBackend(id: number): Promise<{
 }
 
 export async function getConnectorSchemas(): Promise<Record<string, any>> {
-    const response = await fetch(`${API_BASE}/api/v1/backends/schemas`);
+    const response = await apiFetch(`${API_BASE}/api/v1/backends/schemas`);
     if (!response.ok) throw new Error('Failed to fetch schemas');
     return response.json();
 }
@@ -273,7 +278,7 @@ export async function getConnectorSchemas(): Promise<Record<string, any>> {
 // ============================================================================
 
 export async function downloadStudyCSV(studyId: number): Promise<void> {
-    const response = await fetch(`${API_BASE}/api/v1/export/${studyId}/csv`);
+    const response = await apiFetch(`${API_BASE}/api/v1/export/${studyId}/csv`);
     if (!response.ok) throw new Error('Failed to export CSV');
 
     const blob = await response.blob();
@@ -307,13 +312,13 @@ export async function getStudyStats(studyId: number): Promise<{
     total_interactions: number;
     avg_session_duration_seconds: number;
 }> {
-    const response = await fetch(`${API_BASE}/api/v1/export/${studyId}/stats`);
+    const response = await apiFetch(`${API_BASE}/api/v1/export/${studyId}/stats`);
     if (!response.ok) throw new Error('Failed to fetch study stats');
     return response.json();
 }
 
 export async function getGlobalStats(): Promise<GlobalStats> {
-    const response = await fetch(`${API_BASE}/api/v1/export/global/stats`);
+    const response = await apiFetch(`${API_BASE}/api/v1/export/global/stats`);
     if (!response.ok) throw new Error('Failed to fetch global stats');
     return response.json();
 }

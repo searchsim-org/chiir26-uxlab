@@ -100,7 +100,8 @@ export default function NewStudy() {
 
                     {/* Experimental Design */}
                     <div className="bg-card rounded-2xl border border-border p-8">
-                        <h2 className="text-xl font-bold mb-6">Experimental Design</h2>
+                        <h2 className="text-xl font-bold mb-2">Experimental Design</h2>
+                        <p className="text-sm text-muted-foreground mb-6">Choose how participants are assigned to conditions. This determines counterbalancing and group allocation.</p>
 
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <label
@@ -123,7 +124,8 @@ export default function NewStudy() {
                                     </svg>
                                 </div>
                                 <div className="font-semibold mb-1">Within-Subject</div>
-                                <div className="text-sm text-muted-foreground">Each participant experiences all conditions with counterbalancing</div>
+                                <div className="text-sm text-muted-foreground mb-3">Every participant uses all systems in a counterbalanced order (Latin square).</div>
+                                <div className="text-xs text-blue-600 bg-blue-500/10 rounded-lg px-3 py-1.5 mt-auto">Best for comparing systems with fewer participants</div>
                             </label>
 
                             <label
@@ -146,7 +148,8 @@ export default function NewStudy() {
                                     </svg>
                                 </div>
                                 <div className="font-semibold mb-1">Between-Subject</div>
-                                <div className="text-sm text-muted-foreground">Participants are assigned to one condition only</div>
+                                <div className="text-sm text-muted-foreground mb-3">Each participant is randomly assigned to exactly one condition group.</div>
+                                <div className="text-xs text-purple-600 bg-purple-500/10 rounded-lg px-3 py-1.5 mt-auto">Avoids learning effects across conditions</div>
                             </label>
 
                             <label
@@ -169,7 +172,8 @@ export default function NewStudy() {
                                     </svg>
                                 </div>
                                 <div className="font-semibold mb-1">Time-Series</div>
-                                <div className="text-sm text-muted-foreground">Longitudinal study with pause/delay elements</div>
+                                <div className="text-sm text-muted-foreground mb-3">Multi-session study with mandatory wait periods between conditions.</div>
+                                <div className="text-xs text-green-600 bg-green-500/10 rounded-lg px-3 py-1.5 mt-auto">Ideal for longitudinal or diary studies</div>
                             </label>
                         </div>
                     </div>
@@ -231,7 +235,7 @@ export default function NewStudy() {
                                         <div>
                                             <div className="font-medium flex items-center space-x-2">
                                                 <span>Prolific</span>
-                                                <span className="text-xs bg-green-500/10 text-green-600 px-2 py-0.5 rounded-full">Popular</span>
+                                                <span className="text-xs bg-green-500/10 text-green-600 px-2 py-0.5 rounded-full">Recommended</span>
                                             </div>
                                             <div className="text-xs text-muted-foreground">Academic research platform</div>
                                         </div>
