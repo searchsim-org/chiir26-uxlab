@@ -404,27 +404,84 @@ export default function ParticipantView() {
         }
         return (
           <div className="max-w-2xl mx-auto py-8">
-            <h2 className="text-xl font-bold mb-2">{currentStepInfo.title}</h2>
-            {currentStepInfo.content && (
-              <p className="text-muted-foreground mb-8">{currentStepInfo.content}</p>
-            )}
+            {/* Questionnaire Header */}
+            <div className="text-center mb-8">
+              <div className="inline-flex items-center justify-center w-14 h-14 bg-green-500/10 rounded-2xl mb-4">
+                <svg className="w-7 h-7 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+              </div>
+              <h2 className="text-2xl font-bold mb-2">{currentStepInfo.title}</h2>
+              {currentStepInfo.content && (
+                <p className="text-muted-foreground max-w-md mx-auto">{currentStepInfo.content}</p>
+              )}
+              {(currentStepInfo.questions ?? []).length > 0 && (
+                <div className="mt-4 flex items-center justify-center space-x-2 text-xs text-muted-foreground">
+                  <span>{Object.keys(questionnaireAnswers).length} of {currentStepInfo.questions!.length} answered</span>
+                  <div className="w-24 bg-secondary rounded-full h-1.5">
+                    <div
+                      className="bg-green-500 h-1.5 rounded-full transition-all duration-300"
+                      style={{ width: `${currentStepInfo.questions!.length > 0 ? (Object.keys(questionnaireAnswers).length / currentStepInfo.questions!.length) * 100 : 0}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
             {(currentStepInfo.questions ?? []).length === 0 ? (
-              <p className="text-muted-foreground">No questions configured for this step.</p>
+              <div className="text-center py-12 bg-secondary/30 rounded-2xl border border-border">
+                <svg className="w-12 h-12 text-muted-foreground mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <p className="text-muted-foreground">No questions configured for this step.</p>
+              </div>
             ) : (
-              <div className="space-y-8">
+              <div className="space-y-6">
                 {currentStepInfo.questions!.map((q, i) => (
-                  <div key={q.id} className="bg-card rounded-xl border border-border p-6">
-                    <p className="text-sm font-medium mb-4">
-                      {i + 1}. {q.text}
-                      {q.required && <span className="text-red-500 ml-1">*</span>}
-                    </p>
+                  <div
+                    key={q.id}
+                    className={`bg-card rounded-2xl border-2 p-6 transition-all ${
+                      questionnaireAnswers[q.id] != null
+                        ? 'border-green-500/30 bg-green-500/5'
+                        : 'border-border'
+                    }`}
+                  >
+                    <div className="flex items-start space-x-3 mb-5">
+                      <span className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
+                        questionnaireAnswers[q.id] != null
+                          ? 'bg-green-500 text-white'
+                          : 'bg-secondary text-muted-foreground'
+                      }`}>
+                        {questionnaireAnswers[q.id] != null ? (
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                          </svg>
+                        ) : (
+                          i + 1
+                        )}
+                      </span>
+                      <div className="flex-1">
+                        <p className="font-medium text-sm leading-relaxed">
+                          {q.text}
+                          {q.required && <span className="text-red-500 ml-1">*</span>}
+                        </p>
+                      </div>
+                    </div>
                     {renderQuestion(q)}
                   </div>
                 ))}
               </div>
             )}
+
             {questionnaireSubmitted && (
-              <p className="text-green-600 text-sm mt-6 text-center">Responses saved. Click Continue to proceed.</p>
+              <div className="mt-8 p-4 bg-green-500/10 border border-green-500/30 rounded-xl text-center">
+                <div className="flex items-center justify-center space-x-2 text-green-600">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span className="text-sm font-medium">Responses saved successfully. Click Continue to proceed.</span>
+                </div>
+              </div>
             )}
           </div>
         );
