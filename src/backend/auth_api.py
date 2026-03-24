@@ -159,7 +159,7 @@ async def github_callback(
         httponly=True,
         max_age=SESSION_DURATION_DAYS * 24 * 60 * 60,
         samesite="lax",
-        secure=False  # Set to True in production with HTTPS
+        secure=FRONTEND_URL.startswith("https")
     )
     return redirect_response
 
