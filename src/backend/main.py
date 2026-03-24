@@ -14,6 +14,12 @@ from sse_starlette.sse import EventSourceResponse, ServerSentEvent
 from load_user_study import router as load_user_study_router
 from activity_logger import router as activity_logger_router
 from search import router as search_router
+from study_api import router as study_router
+from participant_api import router as participant_router, lookup_router as participant_lookup_router
+from backend_api import router as backend_router
+from export_api import router as export_router
+from auth_api import router as auth_router
+from query_api import router as query_router
 
 
 
@@ -61,7 +67,14 @@ def create_app() -> FastAPI:
     app.include_router(search_router)
     app.include_router(activity_logger_router)
     app.include_router(load_user_study_router)
-    
+    app.include_router(study_router)
+    app.include_router(participant_router)
+    app.include_router(participant_lookup_router)
+    app.include_router(backend_router)
+    app.include_router(export_router)
+    app.include_router(auth_router)
+    app.include_router(query_router)
+
     # Database initialization on startup
     @app.on_event("startup")
     async def startup_event():
@@ -72,6 +85,19 @@ def create_app() -> FastAPI:
             if test_connection():
                 Base.metadata.create_all(engine)
                 print("✓ Database tables initialized successfully")
+                # Run additive column migrations
+                try:
+                    from db.engine import run_migrations
+                    run_migrations(engine)
+                except Exception as e:
+                    print(f"⚠ Warning: Migration error: {e}")
+                # Register default connectors
+                try:
+                    from connectors.registry import register_default_connectors
+                    register_default_connectors()
+                    print("✓ Default connectors registered")
+                except Exception as e:
+                    print(f"⚠ Warning: Failed to register connectors: {e}")
             else:
                 print("⚠ Warning: Database connection test failed")
         except Exception as e:

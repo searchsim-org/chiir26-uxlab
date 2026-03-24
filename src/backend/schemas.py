@@ -5,8 +5,12 @@ try:
     from .constants import ChatModel
     from .utils import strtobool
 except ImportError:
-    from backend.constants import ChatModel
-    from backend.utils import strtobool
+    try:
+        from backend.constants import ChatModel
+        from backend.utils import strtobool
+    except ImportError:
+        from constants import ChatModel
+        from utils import strtobool
 from pydantic import BaseModel, Field
 from typing import Optional
 from datetime import datetime
@@ -81,6 +85,7 @@ class StreamEvent(str, Enum):
     STREAM_END = "stream-end"
     FINAL_RESPONSE = "final-response"
     ERROR = "error"
+    CONNECTOR_INFO = "connector-info"
 
 
 class ChatObject(BaseModel):
@@ -122,6 +127,11 @@ class ErrorStream(ChatObject):
     detail: str
 
 
+class ConnectorInfoStream(ChatObject):
+    event_type: StreamEvent = StreamEvent.CONNECTOR_INFO
+    connector_type: str
+
+
 class ChatResponseEvent(BaseModel):
     event: StreamEvent
     data: Union[
@@ -132,4 +142,5 @@ class ChatResponseEvent(BaseModel):
         StreamEndStream,
         FinalResponseStream,
         ErrorStream,
+        ConnectorInfoStream,
     ]

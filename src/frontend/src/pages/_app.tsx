@@ -1,4 +1,5 @@
 import { ThemeProvider } from "@/components/theme-provider";
+import { AuthProvider } from "@/contexts/AuthContext";
 import { Toaster } from "@/components/ui/toaster";
 import Providers from "@/providers";
 import "./globals.css";
@@ -19,7 +20,7 @@ const inter = Inter({
 const metadata = {
   title: "UXLab",
   description: "UXLab is an open-source system for web-based user studies enabling the complete, no-code configuration of complex experimental designs.",
-  metadataBase: new URL("https://uxlab.searchsim.org"), 
+  metadataBase: new URL("https://uxlab.searchsim.org"),
   openGraph: {
     title: "UXLab",
     description: "UXLab is an open-source system for web-based user studies enabling the complete, no-code configuration of complex experimental designs.",
@@ -37,19 +38,21 @@ export default function MyApp({
     <>
       <Meta metadata={metadata} />
       <Providers>
-        <ThemeProvider
-          attribute="class"
-          forcedTheme="dark"
-          disableTransitionOnChange
-        >
-          <Navbar />
-          <div className="font-product-sans">
-            <Component {...pageProps} />
-          </div>
-          <Toaster />
-          <Footer />
-          <Analytics />
-        </ThemeProvider>
+        <AuthProvider>
+          <ThemeProvider
+            attribute="class"
+            forcedTheme="light"
+            disableTransitionOnChange
+          >
+            <Navbar />
+            <div className="font-product-sans">
+              <Component {...pageProps} />
+            </div>
+            <Toaster />
+            <Footer />
+            <Analytics />
+          </ThemeProvider>
+        </AuthProvider>
       </Providers>
     </>
 

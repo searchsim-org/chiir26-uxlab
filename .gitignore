@@ -10,6 +10,9 @@ __pycache__/
 *.zip
 
 .vscode
+.claude
+tmp/
+docs/
 
 # Distribution / packaging
 .Python

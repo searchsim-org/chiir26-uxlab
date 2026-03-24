@@ -54,6 +54,26 @@ def get_session():
         yield session
 
 
+def run_migrations(eng):
+    """Apply additive column migrations for existing databases."""
+    with eng.connect() as conn:
+        if "sqlite" in str(eng.url):
+            cols = [row[1] for row in conn.execute(text("PRAGMA table_info(participants)"))]
+            if "paused_until" not in cols:
+                conn.execute(text("ALTER TABLE participants ADD COLUMN paused_until DATETIME"))
+                conn.commit()
+                print("  Applied migration: participants.paused_until added")
+        else:
+            result = conn.execute(text(
+                "SELECT column_name FROM information_schema.columns "
+                "WHERE table_name='participants' AND column_name='paused_until'"
+            ))
+            if not result.fetchone():
+                conn.execute(text("ALTER TABLE participants ADD COLUMN paused_until TIMESTAMPTZ"))
+                conn.commit()
+                print("  Applied migration: participants.paused_until added")
+
+
 if __name__ == "__main__":
     if test_connection():
         print("Connection successful.")

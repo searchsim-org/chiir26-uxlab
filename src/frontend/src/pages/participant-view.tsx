@@ -1,25 +1,560 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/router';
+import { ProcedureStep, QuestionnaireQuestion } from '../types/study';
+import ParticipantChat from '../components/participant/ParticipantChat';
+import ParticipantSERP from '../components/participant/ParticipantSERP';
+import { getBackend } from '../services/studyService';
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
+function flattenProcedure(steps: ProcedureStep[], conditionOrder: string[]): ProcedureStep[] {
+  const result: ProcedureStep[] = [];
+  for (const step of steps) {
+    if (step.type === 'block') {
+      const children = step.children || [];
+      if (conditionOrder.length > 0) {
+        const orderMap = new Map(conditionOrder.map((name, i) => [name, i]));
+        const sorted = [...children].sort((a, b) => {
+          const aIdx = orderMap.get(a.title) ?? conditionOrder.length;
+          const bIdx = orderMap.get(b.title) ?? conditionOrder.length;
+          return aIdx - bIdx;
+        });
+        result.push(...sorted);
+      } else {
+        result.push(...children);
+      }
+    } else {
+      result.push(step);
+    }
+  }
+  return result;
+}
+
+interface Study {
+  id: number;
+  name: string;
+  procedure_json: string | null;
+}
+
+interface Participant {
+  id: number;
+  external_id: string;
+  current_step: number;
+  condition_order: string[] | null;
+  completion_code: string | null;
+  status: string;
+}
 
 export default function ParticipantView() {
-  const [currentStep, setCurrentStep] = useState(3);
-  const totalSteps = 6;
-  const [taskComplete, setTaskComplete] = useState(false);
+  const router = useRouter();
+  const { study_id, participant_id, external_id } = router.query;
 
-  const progress = (currentStep / totalSteps) * 100;
+  const [study, setStudy] = useState<Study | null>(null);
+  const [participant, setParticipant] = useState<Participant | null>(null);
+  const [procedureSteps, setProcedureSteps] = useState<ProcedureStep[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const [taskComplete, setTaskComplete] = useState(false);
+  const [backendInfo, setBackendInfo] = useState<Record<number, string>>({});
+  const [questionnaireAnswers, setQuestionnaireAnswers] = useState<Record<string, any>>({});
+  const [questionnaireSubmitted, setQuestionnaireSubmitted] = useState(false);
+
+  // Pause state
+  const [pausedUntil, setPausedUntil] = useState<string | null>(null);
+  const [pauseCountdown, setPauseCountdown] = useState<string>('');
+
+  // Completion redirect state
+  const [redirectUrl, setRedirectUrl] = useState<string | null>(null);
+  const [redirectCountdown, setRedirectCountdown] = useState<number | null>(null);
+
+  // Current step from participant or fallback
+  const currentStep = participant?.current_step ?? 0;
+  const totalSteps = procedureSteps.length || 1;
+  const progress = totalSteps > 0 ? ((currentStep + 1) / totalSteps) * 100 : 0;
+
+  // Load study and register/fetch participant
+  useEffect(() => {
+    async function loadData() {
+      if (!study_id) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        // Fetch study
+        const studyRes = await fetch(`${API_BASE}/api/v1/studies/${study_id}`);
+        if (!studyRes.ok) throw new Error('Study not found');
+        const studyData = await studyRes.json();
+        setStudy(studyData);
+
+        // Parse procedure
+        let parsedSteps: ProcedureStep[] = [];
+        if (studyData.procedure_json) {
+          try {
+            const procedure = JSON.parse(studyData.procedure_json);
+            if (procedure.steps) {
+              parsedSteps = procedure.steps;
+            }
+          } catch (e) {
+            console.error('Failed to parse procedure:', e);
+          }
+        }
+
+        // Register or fetch participant
+        let participantData: any = null;
+
+        if (external_id) {
+          const participantRes = await fetch(
+            `${API_BASE}/api/v1/studies/${study_id}/participants`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ external_id })
+            }
+          );
+          if (participantRes.ok) {
+            participantData = await participantRes.json();
+            setParticipant(participantData);
+          }
+        } else if (participant_id) {
+          const participantRes = await fetch(
+            `${API_BASE}/api/v1/studies/${study_id}/participants/${participant_id}`
+          );
+          if (participantRes.ok) {
+            participantData = await participantRes.json();
+            setParticipant(participantData);
+          }
+        }
+
+        // Initialize pause state if participant is currently paused
+        if (participantData?.paused_until) {
+          const remaining = new Date(participantData.paused_until).getTime() - Date.now();
+          if (remaining > 0) {
+            setPausedUntil(participantData.paused_until);
+          }
+        }
+
+        // Flatten procedure using participant's condition order
+        if (participantData && parsedSteps.length > 0) {
+          const condOrder = participantData.condition_order || [];
+          const flat = flattenProcedure(parsedSteps, condOrder);
+          setProcedureSteps(flat);
+
+          // Fetch backend connector types for condition steps
+          const configIds = new Set<number>();
+          for (const step of flat) {
+            if (step.type === 'condition' && step.backend_config_id) {
+              configIds.add(step.backend_config_id);
+            }
+          }
+          const info: Record<number, string> = {};
+          for (const id of configIds) {
+            try {
+              const backend = await getBackend(id);
+              info[id] = backend.connector_type;
+            } catch {
+              // Backend may have been deleted
+            }
+          }
+          setBackendInfo(info);
+        } else {
+          setProcedureSteps(parsedSteps);
+        }
+
+        setError(null);
+      } catch (err) {
+        console.error('Failed to load study:', err);
+        setError('Failed to load study. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadData();
+  }, [study_id, external_id, participant_id]);
+
+  // Reset questionnaire state on step change
+  useEffect(() => {
+      setQuestionnaireAnswers({});
+      setQuestionnaireSubmitted(false);
+      setTaskComplete(false);
+  }, [currentStep]);
+
+  // Pause countdown timer
+  useEffect(() => {
+    if (!pausedUntil) {
+      setPauseCountdown('');
+      return;
+    }
+    const tick = () => {
+      const target = new Date(pausedUntil).getTime();
+      const remaining = target - Date.now();
+      if (remaining <= 0) {
+        setPausedUntil(null);
+        setPauseCountdown('');
+      } else {
+        const totalSeconds = Math.ceil(remaining / 1000);
+        const h = Math.floor(totalSeconds / 3600);
+        const m = Math.floor((totalSeconds % 3600) / 60);
+        const s = totalSeconds % 60;
+        const parts: string[] = [];
+        if (h > 0) parts.push(`${h}h`);
+        if (m > 0 || h > 0) parts.push(`${m}m`);
+        parts.push(`${s}s`);
+        setPauseCountdown(parts.join(' '));
+      }
+    };
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [pausedUntil]);
+
+  // Redirect countdown after completion
+  useEffect(() => {
+    if (redirectCountdown === null) return;
+    if (redirectCountdown <= 0 && redirectUrl) {
+      window.location.href = redirectUrl;
+      return;
+    }
+    const timeout = setTimeout(() => {
+      setRedirectCountdown(prev => (prev !== null ? prev - 1 : null));
+    }, 1000);
+    return () => clearTimeout(timeout);
+  }, [redirectCountdown, redirectUrl]);
+
+  const submitQuestionnaire = async (): Promise<boolean> => {
+      if (!study_id || !participant?.id) return false;
+      const step = procedureSteps[currentStep];
+      const unanswered = (step.questions ?? []).filter(q => q.required && questionnaireAnswers[q.id] == null);
+      if (unanswered.length > 0) {
+          alert(`Please answer all required questions (${unanswered.length} remaining).`);
+          return false;
+      }
+      try {
+          const res = await fetch(
+              `${API_BASE}/api/v1/studies/${study_id}/participants/${participant.id}/questionnaire_responses`,
+              {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                      step_index: currentStep,
+                      step_title: step.title,
+                      responses: questionnaireAnswers,
+                  }),
+              }
+          );
+          if (res.ok) {
+              setQuestionnaireSubmitted(true);
+              return true;
+          }
+          return false;
+      } catch {
+          return false;
+      }
+  };
+
+  // Advance to next step
+  const advanceStep = async () => {
+    if (!study_id || !participant?.id) return;
+
+    // For questionnaire steps, submit answers first
+    if (currentStepInfo.type === 'questionnaire' && !currentStepInfo.externalUrl && !questionnaireSubmitted) {
+      const ok = await submitQuestionnaire();
+      if (!ok) return;
+    }
+
+    try {
+      const res = await fetch(
+        `${API_BASE}/api/v1/studies/${study_id}/participants/${participant.id}/advance`,
+        { method: 'POST' }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setParticipant(prev => prev ? { ...prev, current_step: data.current_step } : null);
+
+        // Handle pause
+        if (data.paused === true && data.paused_until) {
+          setPausedUntil(data.paused_until);
+        }
+
+        if (data.completed) {
+          // Show completion code
+          setParticipant(prev => prev ? { ...prev, completion_code: data.completion_code, status: 'completed' } : null);
+          // Start redirect countdown if redirect_url provided
+          if (data.redirect_url) {
+            setRedirectUrl(data.redirect_url);
+            setRedirectCountdown(5);
+          }
+        }
+      } else if (res.status === 403) {
+        // Participant is still paused — keep showing countdown, don't crash
+        console.warn('Advance blocked: participant is still paused.');
+      }
+    } catch (err) {
+      console.error('Failed to advance step:', err);
+    }
+  };
+
+  // Get current step info
+  const currentStepInfo = procedureSteps[currentStep] || {
+    type: 'condition',
+    title: 'Information Seeking Task',
+    content: 'Complete the search task using the system below.'
+  };
+
+  const renderQuestion = (q: QuestionnaireQuestion) => {
+      const value = questionnaireAnswers[q.id];
+      const set = (val: any) => setQuestionnaireAnswers(prev => ({ ...prev, [q.id]: val }));
+
+      switch (q.type) {
+          case 'scale':
+              return (
+                  <div>
+                      <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                          <span>{q.scaleLabels?.[0] ?? q.scaleMin ?? 1}</span>
+                          <span>{q.scaleLabels?.[q.scaleLabels.length - 1] ?? q.scaleMax ?? 7}</span>
+                      </div>
+                      <input
+                          type="range"
+                          min={q.scaleMin ?? 1}
+                          max={q.scaleMax ?? 7}
+                          value={value ?? Math.round(((q.scaleMax ?? 7) + (q.scaleMin ?? 1)) / 2)}
+                          onChange={e => set(parseInt(e.target.value))}
+                          className="w-full"
+                      />
+                      <div className="text-center text-sm font-medium mt-1">{value ?? '—'}</div>
+                  </div>
+              );
+          case 'likert': {
+              const opts = q.options ?? q.scaleLabels ?? ['Strongly Disagree', 'Disagree', 'Neutral', 'Agree', 'Strongly Agree'];
+              return (
+                  <div className="flex space-x-2 flex-wrap gap-y-2">
+                      {opts.map((opt, i) => (
+                          <label key={i} className={`flex-1 text-center text-xs p-2 rounded-lg border cursor-pointer transition-all ${value === i + 1 ? 'border-blue-500 bg-blue-500/10 font-medium' : 'border-border hover:border-blue-500/50'}`}>
+                              <input type="radio" name={q.id} className="sr-only" checked={value === i + 1} onChange={() => set(i + 1)} />
+                              {opt}
+                          </label>
+                      ))}
+                  </div>
+              );
+          }
+          case 'choice':
+              return (
+                  <div className="space-y-2">
+                      {(q.options ?? []).map(opt => (
+                          <label key={opt} className={`flex items-center space-x-3 p-3 rounded-lg border cursor-pointer transition-all ${value === opt ? 'border-blue-500 bg-blue-500/10' : 'border-border hover:border-blue-500/50'}`}>
+                              <input type="radio" name={q.id} className="sr-only" checked={value === opt} onChange={() => set(opt)} />
+                              <span className="text-sm">{opt}</span>
+                          </label>
+                      ))}
+                  </div>
+              );
+          case 'integer':
+              return (
+                  <input
+                      type="number"
+                      value={value ?? ''}
+                      onChange={e => set(e.target.value ? parseInt(e.target.value) : undefined)}
+                      className="w-32 bg-secondary border border-border rounded-xl px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+              );
+          case 'text':
+          default:
+              return (
+                  <textarea
+                      value={value ?? ''}
+                      onChange={e => set(e.target.value)}
+                      rows={3}
+                      className="w-full bg-secondary border border-border rounded-xl px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                  />
+              );
+      }
+  };
+
+  const renderStepContent = () => {
+    if (!currentStepInfo) return null;
+
+    switch (currentStepInfo.type) {
+      case 'briefing':
+      case 'end':
+        return (
+          <div className="max-w-2xl mx-auto py-12 text-center">
+            <h2 className="text-2xl font-bold mb-4">{currentStepInfo.title}</h2>
+            <div className="text-muted-foreground leading-relaxed whitespace-pre-wrap">
+              {currentStepInfo.content || 'Please continue to the next step.'}
+            </div>
+          </div>
+        );
+
+      case 'questionnaire':
+        if (currentStepInfo.externalUrl) {
+          return (
+            <div className="w-full h-full flex flex-col">
+              <h2 className="text-xl font-bold mb-4">{currentStepInfo.title}</h2>
+              <iframe
+                src={currentStepInfo.externalUrl}
+                className="flex-1 w-full border border-border rounded-xl"
+                style={{ minHeight: '600px' }}
+                title={currentStepInfo.title}
+                allow="fullscreen"
+              />
+            </div>
+          );
+        }
+        return (
+          <div className="max-w-2xl mx-auto py-8">
+            <h2 className="text-xl font-bold mb-2">{currentStepInfo.title}</h2>
+            {currentStepInfo.content && (
+              <p className="text-muted-foreground mb-8">{currentStepInfo.content}</p>
+            )}
+            {(currentStepInfo.questions ?? []).length === 0 ? (
+              <p className="text-muted-foreground">No questions configured for this step.</p>
+            ) : (
+              <div className="space-y-8">
+                {currentStepInfo.questions!.map((q, i) => (
+                  <div key={q.id} className="bg-card rounded-xl border border-border p-6">
+                    <p className="text-sm font-medium mb-4">
+                      {i + 1}. {q.text}
+                      {q.required && <span className="text-red-500 ml-1">*</span>}
+                    </p>
+                    {renderQuestion(q)}
+                  </div>
+                ))}
+              </div>
+            )}
+            {questionnaireSubmitted && (
+              <p className="text-green-600 text-sm mt-6 text-center">Responses saved. Click Continue to proceed.</p>
+            )}
+          </div>
+        );
+
+      case 'condition': {
+        const connectorType = backendInfo[currentStepInfo.backend_config_id || 0];
+        const isSearch = connectorType === 'bing' || connectorType === 'tavily';
+
+        if (isSearch) {
+          return (
+            <ParticipantSERP
+              studyId={study_id as string}
+              participantId={participant!.id}
+              backendName={currentStepInfo.backend}
+            />
+          );
+        }
+        return (
+          <ParticipantChat
+            studyId={study_id as string}
+            participantId={participant!.id}
+            backendName={currentStepInfo.backend}
+          />
+        );
+      }
+
+      case 'pause':
+        return (
+          <div className="max-w-2xl mx-auto py-12 text-center">
+            <div className="w-16 h-16 bg-yellow-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
+              <svg className="w-8 h-8 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <h2 className="text-2xl font-bold mb-4">Pause</h2>
+            {pausedUntil ? (
+              <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-6 mb-4">
+                <p className="text-yellow-600 font-medium text-lg">Time remaining: {pauseCountdown || '...'}</p>
+              </div>
+            ) : (
+              <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-6 mb-4">
+                <p className="text-green-600 font-medium">Pause period has ended. You may continue.</p>
+              </div>
+            )}
+            <p className="text-muted-foreground">
+              Please return after {currentStepInfo.pauseDuration} {currentStepInfo.pauseUnit || 'hours'}.
+            </p>
+            {currentStepInfo.content && (
+              <p className="text-muted-foreground mt-4">{currentStepInfo.content}</p>
+            )}
+          </div>
+        );
+
+      default:
+        return <p className="text-muted-foreground text-center py-12">Unknown step type.</p>;
+    }
+  };
+
+  if (loading || !participant) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading study...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center p-8">
+          <p className="text-red-500 mb-4">{error}</p>
+          <button onClick={() => router.reload()} className="text-blue-500 hover:underline">
+            Try again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Show completion screen
+  if (participant?.status === 'completed' && participant?.completion_code) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center p-8 max-w-md">
+          <div className="w-16 h-16 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
+            <svg className="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <h1 className="text-2xl font-bold mb-4">Study Complete!</h1>
+          <p className="text-muted-foreground mb-6">Thank you for participating in this study.</p>
+          <div className="bg-secondary rounded-xl p-6 mb-6">
+            <p className="text-sm text-muted-foreground mb-2">Your completion code:</p>
+            <p className="text-2xl font-mono font-bold tracking-wider">{participant.completion_code}</p>
+          </div>
+          <p className="text-xs text-muted-foreground">Please copy this code and return to your recruitment platform.</p>
+          {redirectUrl && redirectCountdown !== null && (
+            <div className="mt-6">
+              <p className="text-sm text-muted-foreground">
+                Redirecting to your recruitment platform in {redirectCountdown} seconds...
+              </p>
+              <a
+                href={redirectUrl}
+                className="text-xs text-blue-500 hover:underline mt-2 inline-block"
+              >
+                Click here if not redirected
+              </a>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      
+
       {/* Study Navigator - Top Persistent Frame */}
       <div className="bg-card border-b border-border shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          
+
           {/* Progress Bar */}
           <div className="mb-6">
             <div className="flex justify-between items-center mb-3">
               <span className="text-sm font-medium">Study Progress</span>
               <span className="text-sm text-muted-foreground">
-                Step {currentStep} of {totalSteps}
+                Step {currentStep + 1} of {totalSteps}
               </span>
             </div>
             <div className="w-full bg-secondary rounded-full h-2.5">
@@ -40,10 +575,10 @@ export default function ParticipantView() {
               </div>
               <div className="flex-1">
                 <h2 className="font-bold text-xl mb-3">
-                  Task: Information Seeking about Dulles International Airport
+                  {currentStepInfo.title}
                 </h2>
                 <p className="text-sm text-muted-foreground leading-relaxed">
-                  You need to find comprehensive information about Washington Dulles International Airport, including: its location (city and state), available transportation options (shuttles, ride-sharing, taxis), nearby hotel accommodations, affordable off-airport parking facilities, and metro station accessibility.
+                  {currentStepInfo.content || 'Complete the task below to continue.'}
                 </p>
               </div>
             </div>
@@ -54,231 +589,66 @@ export default function ParticipantView() {
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-2 bg-purple-500/10 border border-purple-500/30 rounded-lg px-3 py-2">
                 <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse"></div>
-                <span className="text-xs font-semibold text-purple-600">Condition: GPT-4 RAG System</span>
+                <span className="text-xs font-semibold text-purple-600">
+                  {participant?.condition_order?.[0] || 'Active Condition'}
+                </span>
               </div>
               <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span>Time elapsed: 3m 42s</span>
+                <span>Step {currentStep + 1} of {totalSteps}</span>
               </div>
             </div>
-            
+
             <div className="flex items-center space-x-3">
-              <button 
-                onClick={() => setTaskComplete(!taskComplete)}
-                className={`px-8 py-3 rounded-full font-medium text-sm transition-all ${
-                  taskComplete 
-                    ? 'bg-green-500 text-white shadow-lg' 
-                    : 'bg-secondary text-foreground hover:bg-accent border border-border'
-                }`}
-              >
-                {taskComplete ? 'Task Marked Complete' : 'Mark Task as Complete'}
-              </button>
-              <button 
-                disabled={!taskComplete}
-                className={`px-8 py-3 rounded-full font-medium text-sm transition-all flex items-center space-x-2 ${
-                  taskComplete
-                    ? 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white shadow-lg hover:shadow-xl cursor-pointer'
-                    : 'bg-secondary text-muted-foreground cursor-not-allowed opacity-50'
-                }`}
-              >
-                <span>Continue to Next Step</span>
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
+              {currentStepInfo.type === 'questionnaire' && !currentStepInfo.externalUrl ? (
+                <button
+                  onClick={() => { advanceStep(); }}
+                  disabled={questionnaireSubmitted || !!pausedUntil}
+                  className={`px-8 py-3 rounded-full font-medium text-sm transition-all flex items-center space-x-2 ${
+                    !questionnaireSubmitted && !pausedUntil
+                      ? 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white shadow-lg hover:shadow-xl cursor-pointer'
+                      : 'bg-secondary text-muted-foreground cursor-not-allowed opacity-50'
+                  }`}
+                >
+                  <span>{questionnaireSubmitted ? 'Responses Submitted' : 'Submit & Continue'}</span>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              ) : (
+                <>
+                  <button
+                    onClick={() => setTaskComplete(!taskComplete)}
+                    className={`px-8 py-3 rounded-full font-medium text-sm transition-all ${taskComplete
+                      ? 'bg-green-500 text-white shadow-lg'
+                      : 'bg-secondary text-foreground hover:bg-accent border border-border'
+                    }`}
+                  >
+                    {taskComplete ? 'Task Marked Complete' : 'Mark Task as Complete'}
+                  </button>
+                  <button
+                    disabled={!taskComplete || !!pausedUntil}
+                    onClick={() => { advanceStep(); setTaskComplete(false); }}
+                    className={`px-8 py-3 rounded-full font-medium text-sm transition-all flex items-center space-x-2 ${taskComplete && !pausedUntil
+                      ? 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white shadow-lg hover:shadow-xl cursor-pointer'
+                      : 'bg-secondary text-muted-foreground cursor-not-allowed opacity-50'
+                    }`}
+                  >
+                    <span>Continue to Next Step</span>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Content Window - Conversational RAG Interface */}
+      {/* Content Window - Dynamic Step Content */}
       <div className="flex-1 bg-background p-6 overflow-auto">
         <div className="max-w-4xl mx-auto h-full flex flex-col">
-          
-          {/* Conversation Display */}
-          <div className="flex-1 space-y-6 mb-6">
-            
-            {/* User Message 1 */}
-            <div className="flex justify-end">
-              <div className="bg-blue-500 text-white rounded-2xl rounded-tr-sm p-5 max-w-[75%] shadow-sm">
-                <p className="text-sm leading-relaxed">
-                  Where is Dulles airport located and what transportation options are available to get there?
-                </p>
-              </div>
-            </div>
-
-            {/* Assistant Response 1 */}
-            <div className="flex justify-start">
-              <div className="bg-card border border-border rounded-2xl rounded-tl-sm p-6 max-w-[85%] shadow-sm">
-                <div className="flex items-start space-x-4 mb-4">
-                  <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                    </svg>
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm leading-relaxed mb-4">
-                      Washington Dulles International Airport (IAD) is located in <strong>Dulles, Virginia</strong>, approximately 26 miles west of downtown Washington, D.C. The airport serves the greater Washington metropolitan area and offers multiple transportation options:
-                    </p>
-                    
-                    <div className="space-y-3 text-sm mb-4">
-                      <div className="bg-secondary/50 rounded-lg p-4">
-                        <strong className="text-blue-500">Metro Silver Line</strong>
-                        <p className="text-muted-foreground mt-1">Direct rail connection to Washington D.C. The airport station connects to the main terminal via the AeroTrain system. Travel time to downtown is approximately 60 minutes.</p>
-                      </div>
-                      <div className="bg-secondary/50 rounded-lg p-4">
-                        <strong className="text-blue-500">Taxi & Rideshare Services</strong>
-                        <p className="text-muted-foreground mt-1">Taxis are available 24/7 at designated areas. Uber and Lyft have dedicated pickup locations on the Arrivals level. Typical fare to downtown D.C. ranges from $65-80.</p>
-                      </div>
-                      <div className="bg-secondary/50 rounded-lg p-4">
-                        <strong className="text-blue-500">Airport Shuttles & Buses</strong>
-                        <p className="text-muted-foreground mt-1">Multiple shuttle services including SuperShuttle, GO Airport Shuttle, and the Washington Flyer Silver Line Express bus offer shared and private transportation options.</p>
-                      </div>
-                    </div>
-
-                    {/* Source Citations */}
-                    <div className="pt-4 border-t border-border">
-                      <div className="text-xs font-semibold mb-3 text-muted-foreground flex items-center space-x-2">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        <span>Sources</span>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        <button className="bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 px-3 py-1.5 rounded-lg text-xs font-medium text-blue-600 transition-colors">
-                          flydulles.com
-                        </button>
-                        <button className="bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 px-3 py-1.5 rounded-lg text-xs font-medium text-blue-600 transition-colors">
-                          wmata.com
-                        </button>
-                        <button className="bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 px-3 py-1.5 rounded-lg text-xs font-medium text-blue-600 transition-colors">
-                          transportation.gov
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* User Message 2 */}
-            <div className="flex justify-end">
-              <div className="bg-blue-500 text-white rounded-2xl rounded-tr-sm p-5 max-w-[75%] shadow-sm">
-                <p className="text-sm leading-relaxed">
-                  What hotels are nearby and what are the parking options?
-                </p>
-              </div>
-            </div>
-
-            {/* Assistant Response 2 */}
-            <div className="flex justify-start">
-              <div className="bg-card border border-border rounded-2xl rounded-tl-sm p-6 max-w-[85%] shadow-sm">
-                <div className="flex items-start space-x-4">
-                  <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                    </svg>
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm leading-relaxed mb-4">
-                      There are several convenient hotel options near Dulles Airport, and multiple parking facilities for different needs:
-                    </p>
-                    
-                    <div className="space-y-4 text-sm mb-4">
-                      <div>
-                        <h4 className="font-semibold mb-3">Nearby Hotels:</h4>
-                        <div className="space-y-3">
-                          <div className="bg-secondary/50 rounded-lg p-4">
-                            <div className="flex justify-between items-start mb-2">
-                              <strong>Hyatt Regency Dulles</strong>
-                              <span className="text-xs bg-green-500/10 text-green-600 px-2 py-1 rounded-full font-semibold">On-site</span>
-                            </div>
-                            <p className="text-xs text-muted-foreground">Connected to terminal via skybridge. Starting at $199/night.</p>
-                          </div>
-                          <div className="bg-secondary/50 rounded-lg p-4">
-                            <div className="flex justify-between items-start mb-2">
-                              <strong>Washington Dulles Airport Marriott</strong>
-                              <span className="text-xs bg-blue-500/10 text-blue-600 px-2 py-1 rounded-full font-semibold">0.3 mi</span>
-                            </div>
-                            <p className="text-xs text-muted-foreground">Free AeroTrain access. Starting at $189/night.</p>
-                          </div>
-                          <div className="bg-secondary/50 rounded-lg p-4">
-                            <div className="flex justify-between items-start mb-2">
-                              <strong>Hilton Washington Dulles Airport</strong>
-                              <span className="text-xs bg-orange-500/10 text-orange-600 px-2 py-1 rounded-full font-semibold">0.5 mi</span>
-                            </div>
-                            <p className="text-xs text-muted-foreground">24-hour shuttle service. Starting at $165/night.</p>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div>
-                        <h4 className="font-semibold mb-3">Parking Options:</h4>
-                        <div className="space-y-2">
-                          <div className="flex justify-between items-center bg-secondary/50 rounded-lg p-3">
-                            <span>Terminal Parking (Garage)</span>
-                            <span className="text-xs font-semibold">$17/hour, $35/day</span>
-                          </div>
-                          <div className="flex justify-between items-center bg-secondary/50 rounded-lg p-3">
-                            <span>Economy Parking</span>
-                            <span className="text-xs font-semibold">$10/day</span>
-                          </div>
-                          <div className="flex justify-between items-center bg-secondary/50 rounded-lg p-3">
-                            <span>Off-Airport (Private Lots)</span>
-                            <span className="text-xs font-semibold">$7-12/day</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Source Citations */}
-                    <div className="pt-4 border-t border-border">
-                      <div className="text-xs font-semibold mb-3 text-muted-foreground flex items-center space-x-2">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        <span>Sources</span>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        <button className="bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 px-3 py-1.5 rounded-lg text-xs font-medium text-blue-600 transition-colors">
-                          booking.com
-                        </button>
-                        <button className="bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 px-3 py-1.5 rounded-lg text-xs font-medium text-blue-600 transition-colors">
-                          hotels.com
-                        </button>
-                        <button className="bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 px-3 py-1.5 rounded-lg text-xs font-medium text-blue-600 transition-colors">
-                          flydulles.com/parking
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-          </div>
-
-          {/* Input Area */}
-          <div className="sticky bottom-0 bg-background pt-4 pb-2">
-            <div className="flex items-center space-x-3">
-              <input
-                type="text"
-                placeholder="Ask a follow-up question..."
-                className="flex-1 bg-card border-2 border-border focus:border-blue-500 rounded-2xl px-6 py-4 text-sm outline-none transition-all"
-              />
-              <button className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white p-4 rounded-2xl transition-all shadow-lg hover:shadow-xl">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                </svg>
-              </button>
-            </div>
-            <p className="text-xs text-muted-foreground text-center mt-3">
-              Continue asking questions until you have enough information to complete the task
-            </p>
-          </div>
-
+          {renderStepContent()}
         </div>
       </div>
 
@@ -287,16 +657,20 @@ export default function ParticipantView() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center text-xs text-muted-foreground">
             <div className="flex items-center space-x-4">
-              <span>Study ID: CONV-TRAD-2024</span>
+              <span>Study: {study?.name || study_id}</span>
               <span>•</span>
-              <span>Participant: P047</span>
+              <span>Participant: {participant?.external_id || participant_id}</span>
               <span>•</span>
               <span className="text-green-600">Session Active</span>
             </div>
             <div className="flex items-center space-x-4">
-              <span>Backend: OpenAI GPT-4 Turbo</span>
-              <span>•</span>
-              <span>Interactions: 14</span>
+              <span>Step {currentStep + 1} of {totalSteps}</span>
+              {currentStepInfo?.type === 'condition' && (
+                <>
+                  <span>•</span>
+                  <span>{currentStepInfo.backend || 'Unknown Backend'}</span>
+                </>
+              )}
             </div>
           </div>
         </div>
