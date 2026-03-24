@@ -187,7 +187,7 @@ export default function ProcedureBuilder() {
     }));
   };
 
-  const availableComponents = [
+  const availableComponents: { type: ProcedureStep['type']; label: string; color: string; icon: string }[] = [
     { type: 'briefing', label: 'Briefing Page', color: 'blue', icon: 'document' },
     { type: 'questionnaire', label: 'Questionnaire', color: 'green', icon: 'form' },
     { type: 'condition', label: 'Task Condition', color: 'purple', icon: 'task' },
