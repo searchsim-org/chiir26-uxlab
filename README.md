@@ -161,10 +161,6 @@ Connectors implement a shared base interface ([`src/backend/connectors/base.py`]
 
 ---
 
-## Acknowledgments
-
-Developed at the University of Passau. Correspondence: [szerhoudi@acm.org](mailto:szerhoudi@acm.org).
-
 ## License
 
 Licensed under the Apache License 2.0. See [LICENSE](LICENSE) for details.
