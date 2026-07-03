@@ -1,0 +1,40 @@
+cff-version: 1.2.0
+message: "If you use UXLab in your research, please cite our paper."
+title: "From SERPs to Agents: A Platform for Comparative Studies of Information Interaction"
+authors:
+  - family-names: Zerhoudi
+    given-names: Saber
+    email: szerhoudi@acm.org
+  - family-names: Granitzer
+    given-names: Michael
+repository-code: "https://github.com/searchsim-org/uxlab"
+url: "https://uxlab.searchsim.org"
+license: Apache-2.0
+keywords:
+  - user studies
+  - human-AI interaction
+  - autonomous agents
+  - interactive information retrieval
+  - retrieval-augmented generation
+  - comparative user studies
+preferred-citation:
+  type: conference-paper
+  title: "From SERPs to Agents: A Platform for Comparative Studies of Information Interaction"
+  authors:
+    - family-names: Zerhoudi
+      given-names: Saber
+      email: szerhoudi@acm.org
+    - family-names: Granitzer
+      given-names: Michael
+  collection-title: "Proceedings of the 2026 Conference on Human Information Interaction and Retrieval (CHIIR 2026)"
+  conference:
+    name: "Conference on Human Information Interaction and Retrieval"
+    location: "Seattle, WA, USA"
+  year: 2026
+  month: 3
+  start: 122
+  end: 126
+  publisher:
+    name: "ACM"
+  doi: 10.1145/3786304.3787948
+  url: "https://doi.org/10.1145/3786304.3787948"
