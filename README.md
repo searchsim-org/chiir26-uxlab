@@ -87,8 +87,8 @@ A hosted instance is available at **[uxlab.searchsim.org](https://uxlab.searchsi
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/searchsim-org/uxlab.git
-cd uxlab
+git clone https://github.com/searchsim-org/chiir26-uxlab.git
+cd chiir26-uxlab
 ```
 
 ### 2. Configure the environment

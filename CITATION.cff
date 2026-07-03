@@ -7,7 +7,7 @@ authors:
     email: szerhoudi@acm.org
   - family-names: Granitzer
     given-names: Michael
-repository-code: "https://github.com/searchsim-org/uxlab"
+repository-code: "https://github.com/searchsim-org/chiir26-uxlab"
 url: "https://uxlab.searchsim.org"
 license: Apache-2.0
 keywords:
